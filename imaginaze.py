@@ -1,4 +1,5 @@
 import click
+from datetime import datetime
 import os
 import time
 import shutil
@@ -31,6 +32,23 @@ PATH_CW = {
 @click.group()
 def cli():
     pass
+
+
+def getCreationTime(fn):
+    # return datetime.timetuple or None
+    dt = None
+    if '.jpeg' in fn:
+        with open(fn, 'rb') as f:
+            tags = exifread.process_file(f)
+            taken = tags.get('EXIF DateTimeOriginal')
+            if taken:
+                dt = time.strptime(taken.values, '%Y:%m:%d %H:%M:%S')
+    else:
+        secs = os.path.getmtime(os.path.expanduser(fn))
+        txt = time.ctime(secs)
+        dt = datetime.strptime(txt, "%a %b %d %H:%M:%S %Y").timetuple()
+
+    return dt
 
 
 def getUniqueDestination(mvpath, fn, dt, originalFN=None):
@@ -71,24 +89,21 @@ def move_files(path):
     unmoved = 0
     for fn in os.listdir(path):
         full_fn = os.path.join(path, fn)
-        with open(full_fn, 'rb') as f:
-            tags = exifread.process_file(f)
-            taken = tags.get('EXIF DateTimeOriginal')
-            if taken:
-                dt = time.strptime(taken.values, '%Y:%m:%d %H:%M:%S')
-                yr = str(dt.tm_year)
-                mon = PATH_CW[str(dt.tm_mon).zfill(2)]
+        dt = getCreationTime(full_fn)
+        if dt:
+            yr = str(dt.tm_year)
+            mon = PATH_CW[str(dt.tm_mon).zfill(2)]
 
-                # make path if it doesn't exist
-                mvpath = os.path.join(PICTURE_ROOT, yr, mon)
-                if not os.path.exists(mvpath):
-                    os.makedirs(mvpath)
+            # make path if it doesn't exist
+            mvpath = os.path.join(PICTURE_ROOT, yr, mon)
+            if not os.path.exists(mvpath):
+                os.makedirs(mvpath)
 
-                dest = getUniqueDestination(mvpath, fn, dt, originalFN=full_fn)
-                print('{0}->{1}'.format(full_fn, dest))
-                shutil.move(full_fn, dest)
-            else:
-                unmoved += 0
+            dest = getUniqueDestination(mvpath, fn, dt, originalFN=full_fn)
+            print('{0}->{1}'.format(full_fn, dest))
+            shutil.move(full_fn, dest)
+        else:
+            unmoved += 0
 
     print('{} files were not moved'.format(unmoved))
 
@@ -165,14 +180,11 @@ def rename_files(root):
         files = [fn for fn in os.listdir(path) if os.path.isfile(os.path.join(path, fn))]
         for fn in files:
             full_fn = os.path.join(path, fn)
-            with open(full_fn, 'rb') as f:
-                tags = exifread.process_file(f)
-                taken = tags.get('EXIF DateTimeOriginal')
-                if taken:
-                    dt = time.strptime(taken.values, '%Y:%m:%d %H:%M:%S')
-                    dest = getUniqueDestination(path, fn, dt, originalFN=full_fn)
-                    if full_fn != dest:
-                        os.rename(full_fn, dest)
+            dt = getCreationTime(full_fn)
+            if dt:
+                dest = getUniqueDestination(path, fn, dt, originalFN=full_fn)
+                if full_fn != dest:
+                    os.rename(full_fn, dest)
 
 
 if __name__ == '__main__':
