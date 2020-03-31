@@ -11,21 +11,21 @@ from collections import defaultdict
 import exifread
 
 
-PICTURE_ROOT = '/Volumes/BigStorage/pictures'
+PICTURE_ROOT = "/Volumes/BigStorage/pictures"
 
 PATH_CW = {
-    '01': '1 Jan',
-    '02': '2 Feb',
-    '03': '3 Mar',
-    '04': '4 Apr',
-    '05': '5 May',
-    '06': '6 Jun',
-    '07': '7 Jul',
-    '08': '8 Aug',
-    '09': '9 Sep',
-    '10': '10 Oct',
-    '11': '11 Nov',
-    '12': '12 Dec',
+    "01": "1 Jan",
+    "02": "2 Feb",
+    "03": "3 Mar",
+    "04": "4 Apr",
+    "05": "5 May",
+    "06": "6 Jun",
+    "07": "7 Jul",
+    "08": "8 Aug",
+    "09": "9 Sep",
+    "10": "10 Oct",
+    "11": "11 Nov",
+    "12": "12 Dec",
 }
 
 
@@ -37,12 +37,14 @@ def cli():
 def getCreationTime(fn):
     # return datetime.timetuple or None
     dt = None
-    if '.jpeg' in fn:
-        with open(fn, 'rb') as f:
+    if ".jpeg" in fn or ".jpg" in fn:
+        with open(fn, "rb") as f:
             tags = exifread.process_file(f)
-            taken = tags.get('EXIF DateTimeOriginal')
+            taken = tags.get("EXIF DateTimeOriginal")
+            if taken is None:
+                taken = tags.get("Image DateTime")
             if taken:
-                dt = time.strptime(taken.values, '%Y:%m:%d %H:%M:%S')
+                dt = time.strptime(taken.values, "%Y:%m:%d %H:%M:%S")
     else:
         secs = os.path.getmtime(os.path.expanduser(fn))
         txt = time.ctime(secs)
@@ -57,7 +59,7 @@ def getUniqueDestination(mvpath, fn, dt, originalFN=None):
     return a unique filename for this path, based on the date-time.
     """
     ext = os.path.splitext(fn)[1]
-    newFnRoot = time.strftime('%Y-%m-%d %H.%M.%S', dt)
+    newFnRoot = time.strftime("%Y-%m-%d %H.%M.%S", dt)
 
     # get unique filename
     dest = os.path.join(mvpath, newFnRoot + ext)
@@ -69,7 +71,7 @@ def getUniqueDestination(mvpath, fn, dt, originalFN=None):
     if os.path.exists(dest):
         i = 1
         while True:
-            newfn = u'{} ({}){}'.format(newFnRoot, i, ext)
+            newfn = u"{} ({}){}".format(newFnRoot, i, ext)
             i += 1
             dest = os.path.join(mvpath, newfn)
             if not os.path.exists(dest):
@@ -79,7 +81,7 @@ def getUniqueDestination(mvpath, fn, dt, originalFN=None):
 
 
 @cli.command()
-@click.argument('path', type=click.Path(exists=True))
+@click.argument("path", type=click.Path(exists=True))
 def move_files(path):
     """
     Move files from input to archive
@@ -100,17 +102,22 @@ def move_files(path):
                 os.makedirs(mvpath)
 
             dest = getUniqueDestination(mvpath, fn, dt, originalFN=full_fn)
-            print('{0}->{1}'.format(full_fn, dest))
+            print("{0}->{1}".format(full_fn, dest))
             shutil.move(full_fn, dest)
         else:
             unmoved += 0
 
-    print('{} files were not moved'.format(unmoved))
+    print("{} files were not moved".format(unmoved))
 
 
 @cli.command()
-@click.argument('root', type=click.Path(exists=True))
-@click.option('--confirm', default=False, is_flag=True, help='Show files and confirm duplicate deletion')
+@click.argument("root", type=click.Path(exists=True))
+@click.option(
+    "--confirm",
+    default=False,
+    is_flag=True,
+    help="Show files and confirm duplicate deletion",
+)
 def detect_dups(root, confirm=False):
     """
     Detect and remove duplicates in path
@@ -121,14 +128,11 @@ def detect_dups(root, confirm=False):
     paths = [p for p, _, _ in os.walk(root)]
 
     for path in paths:
-        print('Traversing {}'.format(path))
+        print("Traversing {}".format(path))
         # get md5 hash for all files in path
-        fns = [
-            os.path.join(path, fn)
-            for fn in os.listdir(path)
-        ]
+        fns = [os.path.join(path, fn) for fn in os.listdir(path)]
         tups = [
-            (fname, hashlib.sha256(open(fname, 'rb').read()).digest())
+            (fname, hashlib.sha256(open(fname, "rb").read()).digest())
             for fname in fns
             if os.path.isfile(fname)
         ]
@@ -158,7 +162,7 @@ def detect_dups(root, confirm=False):
                         os.system('open "{}"'.format(fn))
 
                 inp = raw_input("Delete one or more duplicates [y or n]? ")
-                should_delete = inp.lower() == 'y'
+                should_delete = inp.lower() == "y"
 
             if should_delete:
                 for fn in fns[1:]:
@@ -167,7 +171,7 @@ def detect_dups(root, confirm=False):
 
 
 @cli.command()
-@click.argument('root', type=click.Path(exists=True))
+@click.argument("root", type=click.Path(exists=True))
 def rename_files(root):
     """
     Rename files using date-time information from file
@@ -176,8 +180,10 @@ def rename_files(root):
     """
     paths = [p for p, _, _ in os.walk(root)]
     for path in paths:
-        print('Traversing {} files in {}'.format(len(os.listdir(path)), path))
-        files = [fn for fn in os.listdir(path) if os.path.isfile(os.path.join(path, fn))]
+        print("Traversing {} files in {}".format(len(os.listdir(path)), path))
+        files = [
+            fn for fn in os.listdir(path) if os.path.isfile(os.path.join(path, fn))
+        ]
         for fn in files:
             full_fn = os.path.join(path, fn)
             dt = getCreationTime(full_fn)
@@ -187,5 +193,5 @@ def rename_files(root):
                     os.rename(full_fn, dest)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
