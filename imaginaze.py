@@ -1,11 +1,11 @@
-import click
 from datetime import datetime
 import os
 import time
 import shutil
 import hashlib
-from PIL import Image
 
+from PIL import Image
+import click
 from collections import defaultdict
 
 import exifread
@@ -107,7 +107,7 @@ def move_files(path):
         else:
             unmoved += 0
 
-    print("{} files were not moved".format(unmoved))
+    print(f"{unmoved} files were not moved")
 
 
 @cli.command()
@@ -166,7 +166,7 @@ def detect_dups(root, confirm=False):
 
             if should_delete:
                 for fn in fns[1:]:
-                    print("Deleting {}".format(fn))
+                    print(f"Deleting {fn}")
                     os.remove(fn)
 
 
